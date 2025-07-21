@@ -1,10 +1,13 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { CalendarList } from "react-native-calendars";
-import { fetchAllTodos, updateTodo } from "../services/todoService";
-import { Todo } from "../types/todo";
+import { fetchAllTodos, fetchTodosByDate, updateTodo } from "../../services/todoService";
+import { Todo } from "../../types/todo";
+import { auth } from "../../firebaseConfig"; // Import auth
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../../firebaseConfig"; // Import db
 
 export default function TodosByDateScreen() {
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -20,6 +23,12 @@ export default function TodosByDateScreen() {
       fetchTodos();
     }, [fetchTodos])
   );
+
+  useEffect(() => {
+    if (selectedDate) {
+      fetchTodosByDate(selectedDate).then(setTodos);
+    }
+  }, [selectedDate]);
 
   // Build markedDates object (dot only if not all completed)
   const markedDates: Record<string, any> = {};

@@ -1,0 +1,25 @@
+import auth from '@react-native-firebase/auth';
+
+export const signUp = async (email: string, password: string) => {
+  return auth().createUserWithEmailAndPassword(email, password);
+};
+
+export const signIn = async (email: string, password: string) => {
+  return auth().signInWithEmailAndPassword(email, password);
+};
+
+export const signOut = async () => {
+  return auth().signOut();
+};
+
+export const onAuthStateChanged = (callback: (user: any) => void) => {
+  return auth().onAuthStateChanged(callback);
+};
+
+export const getIdToken = async () => {
+  const user = auth().currentUser;
+  if (user) {
+    return user.getIdToken();
+  }
+  return null;
+};
