@@ -1,6 +1,7 @@
 // firebaseConfig.ts or firebaseConfig.js
 
 import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore"; // Only Firestore needed
 
 const firebaseConfig = {
@@ -18,3 +19,4 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore (what your app actually uses)
 export const db = getFirestore(app);
+export const auth = getAuth(app);

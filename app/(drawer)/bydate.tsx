@@ -1,52 +1,50 @@
-import { MaterialIcons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { CalendarList } from "react-native-calendars";
-import { fetchAllTodos, updateTodo } from "../services/todoService";
-import { Todo } from "../types/todo";
+import { fetchAllTodos, fetchTodosByDate, updateTodo } from "../../services/todoService";
+import { Todo } from "../../types/todo";
 
 export default function TodosByDateScreen() {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const navigation = useNavigation();
+  const [allTodos, setAllTodos] = useState<Todo[]>([]);
+  const [todosForDate, setTodosForDate] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const fetchTodos = useCallback(async () => {
-    const todosArr = await fetchAllTodos();
-    setTodos(todosArr);
-  }, []);
-
+  // Fetch all todos for dots (run once)
   useFocusEffect(
     useCallback(() => {
-      fetchTodos();
-    }, [fetchTodos])
+      fetchAllTodos().then(setAllTodos);
+    }, [])
   );
 
-  // Build markedDates object (dot only if not all completed)
+  
+  useEffect(() => {
+    if (selectedDate) {
+      fetchTodosByDate(selectedDate).then(setTodosForDate);
+    } else {
+      setTodosForDate([]);
+    }
+  }, [selectedDate]);
+
+  // Build markedDates from allTodos (dots always present for dates with todos)
   const markedDates: Record<string, any> = {};
   const todosByDate: Record<string, Todo[]> = {};
-  todos.forEach(todo => {
+  allTodos.forEach(todo => {
     if (!todosByDate[todo.date]) todosByDate[todo.date] = [];
     todosByDate[todo.date].push(todo);
   });
-  Object.entries(todosByDate).forEach(([date, todosArr]) => {
-    const allCompleted = todosArr.every(t => t.completed);
-    if (!allCompleted) {
-      markedDates[date] = {
-        marked: true,
-        dotColor: "#00adf5",
-        ...(date === selectedDate && {
-          selected: true,
-          selectedColor: "#00adf5",
-          selectedTextColor: "#fff",
-        }),
-      };
-    } else if (date === selectedDate) {
-      markedDates[date] = {
+  Object.entries(todosByDate).forEach(([date]) => {
+    markedDates[date] = {
+      marked: true,
+      dotColor: "#00adf5",
+      ...(date === selectedDate && {
         selected: true,
         selectedColor: "#00adf5",
         selectedTextColor: "#fff",
-      };
-    }
+      }),
+    };
   });
   if (selectedDate && !markedDates[selectedDate]) {
     markedDates[selectedDate] = {
@@ -56,30 +54,49 @@ export default function TodosByDateScreen() {
     };
   }
 
-  const todosForDate = selectedDate
-    ? todos.filter((todo) => todo.date === selectedDate)
-    : [];
-
   const pendingTodos = todosForDate.filter((todo) => !todo.completed);
   const completedTodos = todosForDate.filter((todo) => todo.completed);
 
   const toggleComplete = async (id: string, completed: boolean) => {
     await updateTodo(id, { completed: !completed });
-    fetchTodos();
+    // Refresh both states
+    fetchAllTodos().then(setAllTodos);
+    if (selectedDate) fetchTodosByDate(selectedDate).then(setTodosForDate);
   };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#222" }} contentContainerStyle={{ padding: 16 }}>
-      <Text style={{
-        fontSize: 28,
-        fontWeight: "bold",
-        color: "#fff",
-        marginBottom: 16,
-        letterSpacing: 1,
-        textAlign: "center",
-      }}>
-        Todos by Date
-      </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginTop: 56,
+          marginBottom: 28,
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.openDrawer()}
+          style={{
+            marginRight: 16,
+            backgroundColor: "#232323",
+            borderRadius: 8,
+            padding: 8,
+          }}
+        >
+          <Ionicons name="menu" size={28} color="#00adf5" />
+        </TouchableOpacity>
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: "bold",
+            color: "#fff",
+            letterSpacing: 1,
+          }}
+        >
+          Todos by Date
+        </Text>
+      </View>
+
       <CalendarList
         horizontal
         pastScrollRange={3}
