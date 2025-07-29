@@ -1,25 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { TodoCard } from "../../components/TodoCard";
+import { auth, db } from "../../firebaseConfig"; // adjust path if needed
 import {
-    addTodo,
-    deleteTodo,
-    fetchTodosByDate,
-    updateTodo,
+  addTodo,
+  deleteTodo,
+  fetchTodosByDate,
+  updateTodo,
 } from "../../services/todoService";
 import { Todo } from "../../types/todo";
 import { logoutUser } from "../../utils/auth";
@@ -38,6 +40,8 @@ export default function HomeScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [userName, setUserName] = useState("");
+  const [showHello, setShowHello] = useState(true);
 
   const fetchTodos = useCallback(async () => {
     setLoading(true);
@@ -46,9 +50,33 @@ export default function HomeScreen() {
     setLoading(false);
   }, [selectedDate]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchTodos();
   }, [fetchTodos]);
+
+  // Refetch user name when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const fetchName = async () => {
+        const user = auth.currentUser;
+        if (user) {
+          const docSnap = await getDoc(doc(db, "users", user.uid));
+          if (docSnap.exists()) {
+            setUserName(docSnap.data().name || "");
+          }
+        }
+      };
+      fetchName();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (userName) {
+      setShowHello(true);
+      const timer = setTimeout(() => setShowHello(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [userName]);
 
   const handleDateChange = (_: any, date?: Date) => {
     setShowDatePicker(false);
@@ -112,35 +140,37 @@ export default function HomeScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 56,           // 3.5 rem down from the top
-            marginBottom: 28,        // a bit more space below
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            style={{
-              marginRight: 16,
-              backgroundColor: "#232323",
-              borderRadius: 8,
-              padding: 8,
-            }}
-          >
-            <Ionicons name="menu" size={28} color="#00adf5" />
-          </TouchableOpacity>
-          <Text
-            style={{
-              fontSize: 28,
-              fontWeight: "bold",
-              color: "#fff",
-              letterSpacing: 1,
-            }}
-          >
-            Todo App
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 56, marginBottom: 28, justifyContent: "space-between" }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => navigation.openDrawer()}
+              style={{
+                marginRight: 16,
+                backgroundColor: "#232323",
+                borderRadius: 8,
+                padding: 8,
+              }}
+            >
+              <Ionicons name="menu" size={28} color="#00adf5" />
+            </TouchableOpacity>
+            <Text
+              style={{
+                fontSize: 28,
+                fontWeight: "bold",
+                color: "#fff",
+                letterSpacing: 1,
+              }}
+            >
+              Todo App
+            </Text>
+          </View>
+          {userName ? (
+            <View>
+              <Text style={{ color: "#00adf5", fontWeight: "bold", fontSize: 18 }}>
+                {`Hello ${userName}`}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* Add Todo Card */}
@@ -256,10 +286,14 @@ export default function HomeScreen() {
         />
 
         {/* Logout Button */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={async () => {
-            await logoutUser();
-            // Don't navigate manually, let _layout.tsx handle it
+            try {
+              await logoutUser();
+              router.replace("../(auth)/sign-in");
+            } catch (error) {
+              alert("Logout failed: " + (error as Error).message);
+            }
           }}
           style={{
             backgroundColor: "#ff5252",
@@ -276,7 +310,7 @@ export default function HomeScreen() {
           <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16, textAlign: "center" }}>
             Logout
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -33,7 +33,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+<<<<<<< HEAD
       ]
+=======
+      ],
+      "expo-secure-store"
+>>>>>>> recovered-files
     ],
     "experiments": {
       "typedRoutes": true

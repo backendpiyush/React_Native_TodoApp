@@ -1,55 +1,60 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth, db } from '../firebaseConfig';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import bcrypt from 'react-native-bcrypt';
+import { auth, db } from '../firebaseConfig';
 
-// Sign up a new user
-export const signUpUser = async (email: string, password: string) => {
+export const signUpUser = async (
+  email: string,
+  password: string,
+  name: string,
+  age: string,
+  mobile: string
+) => {
   const userCred = await createUserWithEmailAndPassword(auth, email, password);
   const token = await userCred.user.getIdToken();
   const uid = userCred.user.uid;
 
-  // Hash the password before saving (optional, not needed for Firebase Auth)
   const salt = bcrypt.genSaltSync(10);
   const hashedPassword = bcrypt.hashSync(password, salt);
 
-  // Store user in Firestore
   await setDoc(doc(db, 'users', uid), {
+    uid,
     email,
     hashedPassword,
     token,
-    uid,
+    name,
+    age: parseInt(age), 
+    mobile,
   });
 
-  await AsyncStorage.setItem('firebase_token', token);
+  await SecureStore.setItemAsync('userToken', token);
 };
 
-// Sign in an existing user
+
 export const signInUser = async (email: string, password: string) => {
   const userCred = await signInWithEmailAndPassword(auth, email, password);
   const uid = userCred.user.uid;
 
-  // Fetch token from Firestore (optional, you can also use userCred.user.getIdToken())
+ 
   const userDoc = await getDoc(doc(db, 'users', uid));
   if (!userDoc.exists()) throw new Error('User not found in Firestore');
 
   const userData = userDoc.data();
   const token = userData?.token;
 
-  await AsyncStorage.setItem('firebase_token', token);
+  await SecureStore.setItemAsync('userToken', token);
 
   return userCred;
 };
 
-// Log out the user
+
 export const logoutUser = async () => {
   await signOut(auth);
-  await AsyncStorage.removeItem('firebase_token');
+  await SecureStore.deleteItemAsync('userToken');
 };
 
-// Check if a user is logged in
 export const isUserLoggedIn = async (): Promise<boolean> => {
-  const token = await AsyncStorage.getItem('firebase_token');
+  const token = await SecureStore.getItemAsync('userToken');
   return !!token;
 };
