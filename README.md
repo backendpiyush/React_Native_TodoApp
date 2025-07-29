@@ -48,3 +48,96 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+# React Native Todo App
+
+A simple and modern Todo App built with **React Native**, **Expo**, and **Firebase**.  
+Features include authentication, profile editing, todos by date, and a custom drawer navigation.
+
+---
+
+## Features
+
+- **User Authentication** (Sign Up, Sign In, Password Reset)
+- **Profile Editing**
+- **Todos by Date** (with calendar view)
+- **Mark tasks as completed or pending**
+- **Custom Drawer Navigation**
+- **Field-specific validation and error messages**
+- **Firebase backend integration**
+
+---
+
+## Getting Started
+
+### 1. Clone the Repository
+
+```sh
+git clone https://github.com/your-username/your-todo-app.git
+cd your-todo-app
+```
+
+### 2. Install Dependencies
+
+```sh
+npm install
+# or
+yarn install
+```
+
+### 3. Set Up Firebase
+
+- Create a Firebase project at [Firebase Console](https://console.firebase.google.com/).
+- Enable **Authentication** (Email/Password).
+- Create a **Firestore Database**.
+- Copy your Firebase config and replace it in `firebaseConfig.js` or `firebaseConfig.ts`.
+
+### 4. Start the App
+
+```sh
+npx expo start
+```
+
+---
+
+## Project Structure
+
+```
+/app
+  /(auth)         # Authentication screens (sign-in, sign-up)
+  /(drawer)       # Main app screens (todos, by date, edit profile)
+  /components     # Custom components (drawer, etc.)
+/utils            # Utility functions (auth, etc.)
+/services         # API/service logic (e.g., todoService)
+firebaseConfig.ts # Firebase config
+```
+
+---
+
+## Scripts
+
+- `npm start` — Start Expo development server
+- `npm run android` — Run on Android device/emulator
+- `npm run ios` — Run on iOS simulator (Mac only)
+
+---
+
+## Customization
+
+- **Add more fields** to sign up/profile as needed.
+- **Style** the app to your preference in the component files.
+- **Add features** like notifications, recurring tasks, etc.
+
+---
+
+## License
+
+MIT
+
+---
+
+## Credits
+
+- [React Native](https://reactnative.dev/)
+- [Expo](https://expo.dev/)
+- [Firebase](https://firebase.google.com/)
