@@ -52,3 +52,4 @@ export const updateTodo = async (id: string, data: Partial<Todo>) => {
 export const deleteTodo = async (id: string) => {
   await deleteDoc(doc(db, "todos", id));
 };
+
