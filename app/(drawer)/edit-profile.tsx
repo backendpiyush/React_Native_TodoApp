@@ -1,8 +1,10 @@
 import { useNavigation } from "@react-navigation/native";
+import * as SecureStore from 'expo-secure-store';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { auth, db } from "../../firebaseConfig";
+import { pickProfileImage } from '../../services/todoService';
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
@@ -11,6 +13,8 @@ export default function EditProfileScreen() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [mobile, setMobile] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [localImage, setLocalImage] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,6 +27,8 @@ export default function EditProfileScreen() {
           setName(data.name || "");
           setAge(data.age ? String(data.age) : "");
           setMobile(data.mobile || "");
+          const storedImage = await SecureStore.getItemAsync('profileImage');
+          setImageUrl(storedImage || null);
         }
       }
       setLoading(false);
@@ -30,17 +36,30 @@ export default function EditProfileScreen() {
     fetchProfile();
   }, []);
 
+  const handleUploadImage = async () => {
+    const uri = await pickProfileImage();
+    if (uri) {
+      setLocalImage(uri);
+      await SecureStore.setItemAsync('profileImage', uri);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError("");
     try {
       const user = auth.currentUser;
       if (user) {
+        // Only update text fields in Firestore, NOT the image
         await updateDoc(doc(db, "users", user.uid), {
           name,
           age,
           mobile,
         });
+        // Save image locally in SecureStore
+        if (localImage) {
+          await SecureStore.setItemAsync('profileImage', localImage);
+        }
         navigation.goBack();
       }
     } catch (e) {
@@ -49,9 +68,7 @@ export default function EditProfileScreen() {
     setSaving(false);
   };
 
-  const handleCancel = () => {
-    navigation.goBack();
-  };
+  const handleCancel = () => navigation.goBack();
 
   if (loading) {
     return (
@@ -70,15 +87,33 @@ export default function EditProfileScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           padding: 24,
-          paddingBottom: 120, // space for buttons
+          paddingBottom: 120,
           justifyContent: "center",
           alignItems: "center",
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "bold", marginBottom: 32, textAlign: "center" }}>
+        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "bold", marginBottom: 24, textAlign: "center" }}>
           Edit Profile
         </Text>
+        <Image
+          source={{ uri: localImage || imageUrl || 'https://placehold.co/120x120?text=Profile' }}
+          style={{ width: 120, height: 120, borderRadius: 60, marginBottom: 16, borderWidth: 2, borderColor: "#00adf5" }}
+        />
+        <TouchableOpacity
+          onPress={handleUploadImage}
+          style={{
+            backgroundColor: "#232323",
+            paddingVertical: 10,
+            paddingHorizontal: 24,
+            borderRadius: 8,
+            marginBottom: 24,
+            borderWidth: 1,
+            borderColor: "#00adf5",
+          }}
+        >
+          <Text style={{ color: "#00adf5", fontWeight: "bold" }}>Upload Image</Text>
+        </TouchableOpacity>
         <TextInput
           value={name}
           onChangeText={setName}

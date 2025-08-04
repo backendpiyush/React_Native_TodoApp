@@ -19,6 +19,11 @@ export default function DrawerLayout() {
         name="edit-profile"
         options={{ drawerLabel: 'Edit Profile' }}
       />
+
+      <Drawer.Screen
+        name="profileScreen"
+        options={{ drawerLabel: 'Profile' }}
+      />
     </Drawer>
   );
 }

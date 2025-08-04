@@ -1,13 +1,15 @@
+import * as ImagePicker from 'expo-image-picker';
 import {
-    addDoc,
-    collection,
-    deleteDoc,
-    doc,
-    getDocs,
-    query,
-    updateDoc,
-    where,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
 } from "firebase/firestore";
+import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { auth, db } from "../firebaseConfig";
 import { Todo } from "../types/todo";
 
@@ -52,4 +54,32 @@ export const updateTodo = async (id: string, data: Partial<Todo>) => {
 export const deleteTodo = async (id: string) => {
   await deleteDoc(doc(db, "todos", id));
 };
+
+export async function uploadProfileImage(uri: string, uid: string) {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const storage = getStorage();
+  const storageRef = ref(storage, `profileImages/${uid}.jpg`);
+  await uploadBytes(storageRef, blob);
+  return await getDownloadURL(storageRef);
+}
+
+export async function pickProfileImage() {
+  // Request permission
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== 'granted') {
+    alert('Permission to access gallery is required!');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  });
+  if (!result.canceled && result.assets?.length) {
+    return result.assets[0].uri;
+  }
+  return null;
+}
 

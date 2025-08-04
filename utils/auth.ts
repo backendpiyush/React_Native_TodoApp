@@ -1,8 +1,44 @@
 import * as SecureStore from 'expo-secure-store';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc , updateDoc } from 'firebase/firestore';
 import bcrypt from 'react-native-bcrypt';
-import { auth, db } from '../firebaseConfig';
+import { auth, db, storage } from '../firebaseConfig';
+
+import * as ImagePicker from 'expo-image-picker';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+
+
+
+export const pickAndUploadProfileImage = async (): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    quality: 0.7,
+  });
+
+  if (result.canceled) return null;
+
+  const imageUri = result.assets[0].uri;
+  const response = await fetch(imageUri);
+  const blob = await response.blob();
+
+  const imageRef = ref(storage, `profileImages/${user.uid}`);
+  await uploadBytes(imageRef, blob);
+
+  const imageUrl = await getDownloadURL(imageRef);
+
+  // Update Firestore
+  await updateDoc(doc(db, 'users', user.uid), {
+    imageUrl,
+  });
+
+  return imageUrl;
+};
+
+
 
 export const signUpUser = async (
   email: string,
