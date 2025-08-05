@@ -1,9 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import * as Notifications from "expo-notifications";
 import { useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useCallback, useEffect, useState } from "react";
+
+
+import {
+  registerForPushNotificationsAsync,
+  scheduleEndOfDayReminder,
+  scheduleExactTimeNotification,
+  scheduleMorningSummary,
+  scheduleReminderBeforeTodo,
+} from "../../services/notificationService";
+
+
+
+
 import {
   ActivityIndicator,
   FlatList,
@@ -24,7 +38,16 @@ import {
   updateTodo,
 } from "../../services/todoService";
 import { Todo } from "../../types/todo";
-import { logoutUser } from "../../utils/auth";
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -42,6 +65,8 @@ export default function HomeScreen() {
   const [editDescription, setEditDescription] = useState("");
   const [userName, setUserName] = useState("");
   const [showHello, setShowHello] = useState(true);
+  const [selectedTime, setSelectedTime] = useState("09:00");
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const fetchTodos = useCallback(async () => {
     setLoading(true);
@@ -49,6 +74,8 @@ export default function HomeScreen() {
     setTodos(todosArr);
     setLoading(false);
   }, [selectedDate]);
+
+  
 
   useEffect(() => {
     fetchTodos();
@@ -70,6 +97,21 @@ export default function HomeScreen() {
     }, [])
   );
 
+
+  useEffect(() => {
+    (async () => {
+      const token = await registerForPushNotificationsAsync();
+      console.log("Push Notification Token:", token);
+      
+      if (token) {
+        // Optional: save token to Firestore under /users/<uid>/fcmToken
+      }
+      await scheduleMorningSummary();
+      await scheduleEndOfDayReminder();
+    })();
+  }, []);
+
+
   useEffect(() => {
     if (userName) {
       setShowHello(true);
@@ -89,13 +131,37 @@ export default function HomeScreen() {
     }
   };
 
+  
+
   const handleAddTodo = async () => {
+    // Combine selectedDate and selectedTime into a Date object
+    const [hour, minute] = selectedTime.split(":").map(Number);
+    const todoDateTime = new Date(selectedDate);
+    todoDateTime.setHours(hour, minute, 0, 0);
+
+    const now = new Date();
+
+    // Prevent adding if the selected date/time is in the past
+    if (todoDateTime < now) {
+      alert("You can't add a todo in the past!");
+      return;
+    }
+
     if (!inputTitle.trim()) return;
     await addTodo({
       title: inputTitle,
       description: inputDescription,
       date: selectedDate,
+      time: selectedTime, // Make sure to save the time!
     });
+
+
+
+
+    await scheduleReminderBeforeTodo(selectedDate, selectedTime, inputTitle);
+    await scheduleExactTimeNotification(selectedDate, selectedTime, inputTitle);
+
+    
     setInputTitle("");
     setInputDescription("");
     fetchTodos();
@@ -241,6 +307,38 @@ export default function HomeScreen() {
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={handleDateChange}
               minimumDate={new Date()}
+            />
+          )}
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              style={{
+                backgroundColor: "#181818",
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                marginRight: 10,
+              }}
+            >
+              <Text style={{ color: "#00adf5", fontWeight: "bold" }}>Pick Time</Text>
+            </TouchableOpacity>
+            <Text style={{ color: "#fff", fontSize: 15 }}>
+              {selectedTime}
+            </Text>
+          </View>
+          {showTimePicker && (
+            <DateTimePicker
+              value={new Date(`${selectedDate}T${selectedTime}`)}
+              mode="time"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={(_, date) => {
+                setShowTimePicker(false);
+                if (date) {
+                  const h = date.getHours().toString().padStart(2, "0");
+                  const m = date.getMinutes().toString().padStart(2, "0");
+                  setSelectedTime(`${h}:${m}`);
+                }
+              }}
             />
           )}
           <TouchableOpacity
