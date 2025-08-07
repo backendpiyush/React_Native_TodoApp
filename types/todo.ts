@@ -4,4 +4,5 @@ export type Todo = {
   description: string;
   date: string;
   completed?: boolean;
+  notificationIds?: string[]; // Store all scheduled notification IDs here
 };

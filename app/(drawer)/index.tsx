@@ -8,11 +8,13 @@ import React, { useCallback, useEffect, useState } from "react";
 
 
 import {
+  cancelScheduledNotifications,
   registerForPushNotificationsAsync,
   scheduleEndOfDayReminder,
   scheduleExactTimeNotification,
   scheduleMorningSummary,
-  scheduleReminderBeforeTodo,
+  scheduleOverdueReminders,
+  scheduleReminderBeforeTodo
 } from "../../services/notificationService";
 
 
@@ -148,26 +150,42 @@ export default function HomeScreen() {
     }
 
     if (!inputTitle.trim()) return;
-    await addTodo({
+
+    // 1. Add the todo and get its ID
+    const todoId = await addTodo({
       title: inputTitle,
       description: inputDescription,
       date: selectedDate,
-      time: selectedTime, // Make sure to save the time!
+      time: selectedTime,
+      completed: false,
+      notificationIds: [],
     });
 
+    // 2. Schedule all notifications and collect their IDs
+    const notificationIds: string[] = [];
+    const beforeReminderId = await scheduleReminderBeforeTodo(selectedDate, selectedTime, inputTitle);
+    if (beforeReminderId) notificationIds.push(beforeReminderId);
 
+    const atTimeId = await scheduleExactTimeNotification(selectedDate, selectedTime, inputTitle);
+    if (atTimeId) notificationIds.push(atTimeId);
 
+    const overdueIds = await scheduleOverdueReminders(todoId, inputTitle, selectedDate, selectedTime);
+    if (Array.isArray(overdueIds)) notificationIds.push(...overdueIds);
 
-    await scheduleReminderBeforeTodo(selectedDate, selectedTime, inputTitle);
-    await scheduleExactTimeNotification(selectedDate, selectedTime, inputTitle);
+    // 3. Save all notification IDs in the todo
+    await updateTodo(todoId, { notificationIds });
 
-    
     setInputTitle("");
     setInputDescription("");
     fetchTodos();
   };
 
   const handleDeleteTodo = async (id: string) => {
+    // Find the todo to get its notificationIds
+    const todo = todos.find(todo => todo.id === id);
+    if (todo && Array.isArray(todo.notificationIds)) {
+      await cancelScheduledNotifications(todo.notificationIds);
+    }
     await deleteTodo(id);
     fetchTodos();
   };
@@ -186,6 +204,16 @@ export default function HomeScreen() {
     setEditId(null);
     setEditTitle("");
     setEditDescription("");
+    fetchTodos();
+  };
+
+  // If you have a "mark as done" or "complete" handler, add this:
+  const handleCompleteTodo = async (id: string) => {
+    const todo = todos.find(todo => todo.id === id);
+    if (todo && Array.isArray(todo.notificationIds)) {
+      await cancelScheduledNotifications(todo.notificationIds);
+    }
+    await updateTodo(id, { completed: true });
     fetchTodos();
   };
 

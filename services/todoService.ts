@@ -36,15 +36,32 @@ export const fetchAllTodos = async (): Promise<Todo[]> => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Todo));
 };
 
-export const addTodo = async ({ title, description, date }: { title: string, description: string, date: string }) => {
+export const addTodo = async ({
+  title,
+  description,
+  date,
+  time,
+  completed = false,
+}: {
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  completed?: boolean;
+}): Promise<string> => {
   const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  await addDoc(collection(db, 'todos'), {
+  if (!user) throw new Error("Not authenticated");
+
+  const docRef = await addDoc(collection(db, "todos"), {
     title,
     description,
     date,
-    uid: user.uid, // <-- Save the user's UID
+    time,
+    completed,
+    uid: user.uid,
   });
+
+  return docRef.id; // ✅ correct way to return the ID
 };
 
 export const updateTodo = async (id: string, data: Partial<Todo>) => {

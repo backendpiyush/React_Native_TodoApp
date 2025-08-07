@@ -1,6 +1,7 @@
+import { cancelScheduledNotifications, scheduleOverdueReminders } from "@/services/notificationService";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { CalendarList } from "react-native-calendars";
 import { fetchAllTodos, fetchTodosByDate, updateTodo } from "../../services/todoService";
@@ -12,21 +13,17 @@ export default function TodosByDateScreen() {
   const [todosForDate, setTodosForDate] = useState<Todo[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // Fetch all todos for dots (run once)
+  // Always fetch all todos when screen is focused
   useFocusEffect(
     useCallback(() => {
       fetchAllTodos().then(setAllTodos);
-    }, [])
+      if (selectedDate) {
+        fetchTodosByDate(selectedDate).then(setTodosForDate);
+      } else {
+        setTodosForDate([]);
+      }
+    }, [selectedDate])
   );
-
-  
-  useEffect(() => {
-    if (selectedDate) {
-      fetchTodosByDate(selectedDate).then(setTodosForDate);
-    } else {
-      setTodosForDate([]);
-    }
-  }, [selectedDate]);
 
   // Build markedDates from allTodos (dots always present for dates with todos)
   const markedDates: Record<string, any> = {};
@@ -58,7 +55,35 @@ export default function TodosByDateScreen() {
   const completedTodos = todosForDate.filter((todo) => todo.completed);
 
   const toggleComplete = async (id: string, completed: boolean) => {
-    await updateTodo(id, { completed: !completed });
+    const todo = todosForDate.find(t => t.id === id);
+
+    if (!todo) return;
+
+    if (!completed) {
+      // Marking as completed: cancel notifications
+      if (Array.isArray(todo.notificationIds)) {
+        await cancelScheduledNotifications(todo.notificationIds);
+      }
+      await updateTodo(id, { completed: true });
+    } else {
+      // Undo: marking as not completed
+      await updateTodo(id, { completed: false });
+      // If overdue, immediately send overdue notifications
+      const [hour, minute] = (todo.time || "00:00").split(":").map(Number);
+      const dueDate = new Date(todo.date);
+      dueDate.setHours(hour, minute, 0, 0);
+      if (dueDate < new Date()) {
+        // Schedule overdue notifications and update notificationIds
+        const notificationIds = await scheduleOverdueReminders(
+          todo.id,
+          todo.title,
+          todo.date,
+          todo.time
+        );
+        await updateTodo(id, { notificationIds });
+      }
+    }
+
     // Refresh both states
     fetchAllTodos().then(setAllTodos);
     if (selectedDate) fetchTodosByDate(selectedDate).then(setTodosForDate);
@@ -110,7 +135,7 @@ export default function TodosByDateScreen() {
           dayTextColor: "#fff",
           monthTextColor: "#fff",
           selectedDayTextColor: "#fff",
-          todayTextColor: "#00adf5",
+          todayTextColor: "#00adf5",                   
           dotColor: "#00adf5",
           selectedDotColor: "#fff",
         }}
